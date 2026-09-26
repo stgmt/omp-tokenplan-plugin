@@ -14,8 +14,9 @@
  *      `omp plugin config set omp-tokenplan-plugin apiKey <token>`.
  *
  * Designed to be run via `bunx github:stgmt/omp-tokenplan-plugin --token <key>`
- * (no prior install needed) or `npx -y stgmt/omp-tokenplan-plugin --token <key>`.
- * Requires `omp` on PATH and either node or bun as the script runtime.
+ * (no prior install needed). Requires `omp` on PATH and bun or node 20+.
+ * Bun's fetch honors HTTP(S)_PROXY; node's undici does not — run via bunx on
+ * proxied networks.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -51,9 +52,12 @@ function parseToken(argv) {
 }
 
 function run(cmd, args) {
+	// No shell — ever. shell:true on Windows joins argv through cmd.exe
+	// unescaped, so a token containing & | ^ % would be truncated or worse.
+	// omp resolves as omp.exe via PATH/PATHEXT and a missing binary reports
+	// ENOENT on every platform.
 	const res = spawnSync(cmd, args, {
 		stdio: "inherit",
-		shell: process.platform === "win32",
 		env: process.env,
 	});
 	if (res.error) {
@@ -70,14 +74,25 @@ function omp(args, whatFailed) {
 }
 
 function pluginInstalled() {
-	const lock = join(homedir(), ".omp", "plugins", "omp-plugins.lock.json");
-	try {
-		if (!existsSync(lock)) return false;
-		const doc = JSON.parse(readFileSync(lock, "utf-8"));
-		return Boolean(doc?.plugins?.[PLUGIN_NAME]);
-	} catch {
-		return false;
+	// Same candidates the extension resolves (profile/PI_CONFIG_DIR/XDG) —
+	// keep in sync with src/settings.ts globalLockCandidates.
+	const profile = (process.env.OMP_PROFILE ?? process.env.PI_PROFILE ?? "").trim();
+	const configDir = (process.env.PI_CONFIG_DIR ?? ".omp").trim() || ".omp";
+	const profileParts = profile ? ["profiles", profile] : [];
+	const candidates = [join(homedir(), configDir, ...profileParts, "plugins", "omp-plugins.lock.json")];
+	if ((process.platform === "linux" || process.platform === "darwin") && process.env.XDG_DATA_HOME) {
+		candidates.unshift(join(process.env.XDG_DATA_HOME, "omp", ...profileParts, "plugins", "omp-plugins.lock.json"));
 	}
+	for (const lock of candidates) {
+		try {
+			if (!existsSync(lock)) continue;
+			const doc = JSON.parse(readFileSync(lock, "utf-8"));
+			if (doc?.plugins?.[PLUGIN_NAME]) return true;
+		} catch {
+			// unreadable/corrupt lock — try the next candidate
+		}
+	}
+	return false;
 }
 
 async function validateToken(token) {

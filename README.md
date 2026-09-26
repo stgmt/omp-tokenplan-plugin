@@ -8,7 +8,6 @@ session model.
 
 ## Requirements
 
-- [Oh My Pi](https://github.com/stgmt/oh-my-pi) 17.3+ (`omp` on PATH)
 - Oh My Pi 17.3+ (`omp` on PATH)
 - A tokenplan API key
 
@@ -27,14 +26,21 @@ The second command is the plugin's own installer. It:
 3. persists the key as the plugin `apiKey` setting
    (same thing `omp plugin config set omp-tokenplan-plugin apiKey <key>` does).
 
-Alternative key sources, highest priority first:
+Key sources — stored settings win over the environment (`env` is the
+declared fallback, so a stale env var can't shadow a key you just set):
 
-| Source | How |
-|---|---|
-| `TOKENPLAN_API_KEY` env var | `export TOKENPLAN_API_KEY=sk-…` — wins over stored config, good for CI |
-| Project override | `omp plugin config set omp-tokenplan-plugin apiKey <key> --scope project` (writes `.omp/plugin-overrides.json`) |
-| Global user config | `omp plugin config set omp-tokenplan-plugin apiKey <key>` (writes `~/.omp/plugins/omp-plugins.lock.json`) |
-| `/login tokenplan` in the TUI | interactive prompt; stored in OMP auth credentials |
+| Priority | Source | How |
+|---|---|---|
+| 1 | Project override | `.omp/plugin-overrides.json` `settings.omp-tokenplan-plugin.apiKey` (also probed under `.claude`/`.codex`/`.gemini`) |
+| 2 | Global user config | `omp plugin config set omp-tokenplan-plugin apiKey <key>` (writes `~/.omp/plugins/omp-plugins.lock.json`, profile/XDG-aware) |
+| 3 | Env fallback | `export TOKENPLAN_API_KEY=sk-…` |
+| — | `/login tokenplan` in the TUI | interactive prompt; stored in OMP auth credentials — independent of the list above |
+
+`secret: true` masks the key in `omp plugin config list` output only —
+it is stored as plaintext in the lock file. The key appears once on the
+installer's child-process command line (`omp plugin config set`); if your
+token contains cmd.exe metacharacters the installer still passes it safely
+(no shell is used), but process-list snapshots can see argv.
 
 ## Usage
 
@@ -63,7 +69,7 @@ stale or partial model metadata.
 |---|---|
 | `src/extension.ts` | OMP extension entry: provider + `/tokenplan` command |
 | `src/model.ts` | `/v1/models` DTO → provider model mapping (pure, testable) |
-| `src/settings.ts` | API-key resolution: env → project override → global lock |
+| `src/settings.ts` | API-key resolution: project override → global lock → env fallback |
 | `bin/tokenplan-install.js` | one-shot install + token store + live validation |
 | `dist/extension.js` | bundled extension (built by `bun run build`) |
 

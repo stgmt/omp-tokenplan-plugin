@@ -56,6 +56,7 @@ interface ProviderRegistration {
 	models: ProviderModelShape[];
 	fetchDynamicModels(apiKey?: string): Promise<ProviderModelShape[]>;
 	oauth?: {
+		name: string;
 		login(callbacks: {
 			onPrompt(prompt: { message: string; placeholder?: string }): Promise<string>;
 		}): Promise<string>;
@@ -92,6 +93,7 @@ export default async function tokenplanExtension(pi: PiLike): Promise<void> {
 			return fetchModels(key);
 		},
 		oauth: {
+			name: "Tokenplan",
 			async login(callbacks) {
 				return callbacks.onPrompt({
 					message: "Tokenplan API key",
@@ -106,14 +108,18 @@ export default async function tokenplanExtension(pi: PiLike): Promise<void> {
 		description: "Switch to the default tokenplan gateway model (or a named one)",
 		async handler(args, ctx) {
 			const spec = args.trim();
+			// Only tokenplan/* or bare ids are in scope — a foreign provider
+			// prefix must never switch the session to another provider.
 			const model = spec
-				? ctx.models.resolve(spec.includes("/") ? spec : `${PROVIDER}/${spec}`)
+				? spec.includes("/")
+					? (spec.startsWith(`${PROVIDER}/`) ? ctx.models.resolve(spec) : undefined)
+					: ctx.models.resolve(`${PROVIDER}/${spec}`)
 				: ctx.models.list().find((m) => m.provider === PROVIDER);
 
 			if (!model) {
 				ctx.ui.notify(
 					spec
-						? `Model "${spec}" is not available on ${PROVIDER} — check \`omp models\` for the live catalog`
+						? `Model "${spec}" is not available on ${PROVIDER} — the command only accepts tokenplan/<id> or a bare id; check \`omp models\` for the live catalog`
 						: `No usable ${PROVIDER} model (missing key or empty catalog) — ${INSTALL_HINT} (or: omp plugin config set ${PLUGIN_NAME} ${SETTING_ID} <key>)`,
 					"error",
 				);

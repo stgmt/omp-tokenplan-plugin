@@ -53,6 +53,9 @@ import { homedir } from "os";
 import { join } from "path";
 var PLUGIN_NAME = "omp-tokenplan-plugin";
 var SETTING_ID = "apiKey";
+var LOCK_NAME = "omp-plugins.lock.json";
+var OVERRIDES_NAME = "plugin-overrides.json";
+var PROJECT_BASES = [".omp", ".claude", ".codex", ".gemini"];
 function readJson(file) {
   try {
     if (!existsSync(file))
@@ -74,17 +77,31 @@ function apiKeyFrom(doc) {
   const value = entry[SETTING_ID];
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
+function globalLockCandidates() {
+  const profile = (process.env.OMP_PROFILE ?? process.env.PI_PROFILE)?.trim() || undefined;
+  const configDir = process.env.PI_CONFIG_DIR?.trim() || ".omp";
+  const profileParts = profile ? ["profiles", profile] : [];
+  const candidates = [];
+  if (process.platform === "linux" || process.platform === "darwin") {
+    const xdg = process.env.XDG_DATA_HOME;
+    if (xdg)
+      candidates.push(join(xdg, "omp", ...profileParts, "plugins", LOCK_NAME));
+  }
+  candidates.push(join(homedir(), configDir, ...profileParts, "plugins", LOCK_NAME));
+  return candidates;
+}
 function resolveApiKey(cwd = process.cwd()) {
-  const env = process.env[ENV_VAR]?.trim();
-  if (env)
-    return env;
-  const project = apiKeyFrom(readJson(join(cwd, ".omp", "plugin-overrides.json")));
-  if (project)
-    return project;
-  const global = apiKeyFrom(readJson(join(homedir(), ".omp", "plugins", "omp-plugins.lock.json")));
-  if (global)
-    return global;
-  return;
+  for (const base of PROJECT_BASES) {
+    const key = apiKeyFrom(readJson(join(cwd, base, OVERRIDES_NAME)));
+    if (key)
+      return key;
+  }
+  for (const lock of globalLockCandidates()) {
+    const key = apiKeyFrom(readJson(lock));
+    if (key)
+      return key;
+  }
+  return process.env[ENV_VAR]?.trim() || undefined;
 }
 
 // src/extension.ts
@@ -104,6 +121,7 @@ async function tokenplanExtension(pi) {
       return fetchModels(key);
     },
     oauth: {
+      name: "Tokenplan",
       async login(callbacks) {
         return callbacks.onPrompt({
           message: "Tokenplan API key",
@@ -117,9 +135,9 @@ async function tokenplanExtension(pi) {
     description: "Switch to the default tokenplan gateway model (or a named one)",
     async handler(args, ctx) {
       const spec = args.trim();
-      const model = spec ? ctx.models.resolve(spec.includes("/") ? spec : `${PROVIDER}/${spec}`) : ctx.models.list().find((m) => m.provider === PROVIDER);
+      const model = spec ? spec.includes("/") ? spec.startsWith(`${PROVIDER}/`) ? ctx.models.resolve(spec) : undefined : ctx.models.resolve(`${PROVIDER}/${spec}`) : ctx.models.list().find((m) => m.provider === PROVIDER);
       if (!model) {
-        ctx.ui.notify(spec ? `Model "${spec}" is not available on ${PROVIDER} \u2014 check \`omp models\` for the live catalog` : `No usable ${PROVIDER} model (missing key or empty catalog) \u2014 ${INSTALL_HINT} (or: omp plugin config set ${PLUGIN_NAME} ${SETTING_ID} <key>)`, "error");
+        ctx.ui.notify(spec ? `Model "${spec}" is not available on ${PROVIDER} \u2014 the command only accepts tokenplan/<id> or a bare id; check \`omp models\` for the live catalog` : `No usable ${PROVIDER} model (missing key or empty catalog) \u2014 ${INSTALL_HINT} (or: omp plugin config set ${PLUGIN_NAME} ${SETTING_ID} <key>)`, "error");
         return;
       }
       const ok = await pi.setModel(model);
