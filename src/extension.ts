@@ -72,21 +72,7 @@ interface PiLike {
 
 // ---------------------------------------------------------------------------
 
-const DEFAULT_MODEL_ENV = "TOKENPLAN_MODEL";
 const INSTALL_HINT = `run "bunx github:stgmt/${PLUGIN_NAME} --token <key>" or set ${ENV_VAR}`;
-
-function pickDefaultModel(authenticated: ModelLike[]): ModelLike | undefined {
-	const fromProvider = authenticated.filter((m) => m.provider === PROVIDER);
-	if (fromProvider.length === 0) return undefined;
-	const preferred = process.env[DEFAULT_MODEL_ENV]?.trim();
-	if (preferred) {
-		const hit = fromProvider.find(
-			(m) => m.id === preferred || `${PROVIDER}/${m.id}` === preferred,
-		);
-		if (hit) return hit;
-	}
-	return fromProvider[0];
-}
 
 export default async function tokenplanExtension(pi: PiLike): Promise<void> {
 	pi.setLabel("Tokenplan Gateway");
@@ -119,36 +105,30 @@ export default async function tokenplanExtension(pi: PiLike): Promise<void> {
 	pi.registerCommand("tokenplan", {
 		description: "Switch to the default tokenplan gateway model (or a named one)",
 		async handler(args, ctx) {
-			const key = resolveApiKey(ctx.cwd ?? process.cwd());
-			if (!key) {
-				ctx.ui.notify(
-					`No tokenplan API key configured — ${INSTALL_HINT} (or: omp plugin config set ${PLUGIN_NAME} ${SETTING_ID} <key>)`,
-					"error",
-				);
-				return;
-			}
-
 			const spec = args.trim();
 			const model = spec
 				? ctx.models.resolve(spec.includes("/") ? spec : `${PROVIDER}/${spec}`)
-				: pickDefaultModel(ctx.models.list());
+				: ctx.models.list().find((m) => m.provider === PROVIDER);
 
 			if (!model) {
 				ctx.ui.notify(
 					spec
 						? `Model "${spec}" is not available on ${PROVIDER} — check \`omp models\` for the live catalog`
-						: `No authenticated ${PROVIDER} model — ${INSTALL_HINT}`,
+						: `No usable ${PROVIDER} model (missing key or empty catalog) — ${INSTALL_HINT} (or: omp plugin config set ${PLUGIN_NAME} ${SETTING_ID} <key>)`,
 					"error",
 				);
 				return;
 			}
 
+			// setModel is the arbiter of "no usable key" per spec DESIGN §4 —
+			// it consults the full auth cascade (settings, env, login store),
+			// not a subset the command could diverge from.
 			const ok = await pi.setModel(model);
 			if (ok) {
 				ctx.ui.notify(`Switched to ${PROVIDER}/${model.id}`, "info");
 			} else {
 				ctx.ui.notify(
-					`Failed to switch to ${PROVIDER}/${model.id} — missing or invalid API key`,
+					`Failed to switch to ${PROVIDER}/${model.id} — missing or invalid API key; ${INSTALL_HINT}`,
 					"error",
 				);
 			}

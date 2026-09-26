@@ -88,20 +88,7 @@ function resolveApiKey(cwd = process.cwd()) {
 }
 
 // src/extension.ts
-var DEFAULT_MODEL_ENV = "TOKENPLAN_MODEL";
 var INSTALL_HINT = `run "bunx github:stgmt/${PLUGIN_NAME} --token <key>" or set ${ENV_VAR}`;
-function pickDefaultModel(authenticated) {
-  const fromProvider = authenticated.filter((m) => m.provider === PROVIDER);
-  if (fromProvider.length === 0)
-    return;
-  const preferred = process.env[DEFAULT_MODEL_ENV]?.trim();
-  if (preferred) {
-    const hit = fromProvider.find((m) => m.id === preferred || `${PROVIDER}/${m.id}` === preferred);
-    if (hit)
-      return hit;
-  }
-  return fromProvider[0];
-}
 async function tokenplanExtension(pi) {
   pi.setLabel("Tokenplan Gateway");
   const apiKey = resolveApiKey();
@@ -129,22 +116,17 @@ async function tokenplanExtension(pi) {
   pi.registerCommand("tokenplan", {
     description: "Switch to the default tokenplan gateway model (or a named one)",
     async handler(args, ctx) {
-      const key = resolveApiKey(ctx.cwd ?? process.cwd());
-      if (!key) {
-        ctx.ui.notify(`No tokenplan API key configured \u2014 ${INSTALL_HINT} (or: omp plugin config set ${PLUGIN_NAME} ${SETTING_ID} <key>)`, "error");
-        return;
-      }
       const spec = args.trim();
-      const model = spec ? ctx.models.resolve(spec.includes("/") ? spec : `${PROVIDER}/${spec}`) : pickDefaultModel(ctx.models.list());
+      const model = spec ? ctx.models.resolve(spec.includes("/") ? spec : `${PROVIDER}/${spec}`) : ctx.models.list().find((m) => m.provider === PROVIDER);
       if (!model) {
-        ctx.ui.notify(spec ? `Model "${spec}" is not available on ${PROVIDER} \u2014 check \`omp models\` for the live catalog` : `No authenticated ${PROVIDER} model \u2014 ${INSTALL_HINT}`, "error");
+        ctx.ui.notify(spec ? `Model "${spec}" is not available on ${PROVIDER} \u2014 check \`omp models\` for the live catalog` : `No usable ${PROVIDER} model (missing key or empty catalog) \u2014 ${INSTALL_HINT} (or: omp plugin config set ${PLUGIN_NAME} ${SETTING_ID} <key>)`, "error");
         return;
       }
       const ok = await pi.setModel(model);
       if (ok) {
         ctx.ui.notify(`Switched to ${PROVIDER}/${model.id}`, "info");
       } else {
-        ctx.ui.notify(`Failed to switch to ${PROVIDER}/${model.id} \u2014 missing or invalid API key`, "error");
+        ctx.ui.notify(`Failed to switch to ${PROVIDER}/${model.id} \u2014 missing or invalid API key; ${INSTALL_HINT}`, "error");
       }
     }
   });

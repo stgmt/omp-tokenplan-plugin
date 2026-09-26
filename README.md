@@ -43,10 +43,8 @@ Alternative key sources, highest priority first:
 /tokenplan <model-id>      → switch to a specific model (e.g. /tokenplan deepseek-chat)
 ```
 
-`TOKENPLAN_MODEL` env var picks which catalog model bare `/tokenplan`
-selects; without it the first authenticated tokenplan model is used.
-Model specs from `omp models` (e.g. `tokenplan/deepseek-chat`) are also
-accepted.
+Model specs from `omp models` (e.g. `tokenplan/deepseek-chat`) are accepted;
+bare `/tokenplan` uses the first authenticated tokenplan model.
 
 The provider uses OMP's `openai-responses` transport with
 `Authorization: Bearer <key>`. Prompt caching is handled by OMP core

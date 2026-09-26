@@ -40,9 +40,9 @@ function usage() {
 function parseToken(argv) {
 	for (let i = 0; i < argv.length; i += 1) {
 		const arg = argv[i];
-		if (arg === "--token" || arg === "-t" || arg === "--api-key") {
+		if (arg === "--token") {
 			const value = argv[i + 1];
-			if (!value || value.startsWith("-")) fail(`missing value after ${arg}`);
+			if (!value || value.startsWith("-")) fail("missing value after --token");
 			return value.trim();
 		}
 		if (arg.startsWith("--token=")) return arg.slice("--token=".length).trim();

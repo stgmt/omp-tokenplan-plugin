@@ -61,9 +61,10 @@ export function toProviderModel(dto: TokenplanModelDto): ProviderModelShape {
 }
 
 /**
- * GET {baseUrl}/models and map the catalog. Fail-closed: any transport,
- * status, or payload problem throws FAIL_CLOSED_ERROR rather than returning
- * stale or partial data.
+ * GET {baseUrl}/models and map the catalog. Fail-closed: transport, status,
+ * and payload-shape problems throw FAIL_CLOSED_ERROR; a malformed entry
+ * (no id) throws its own error from toProviderModel. Either way the caller
+ * never gets stale or partial data.
  */
 export async function fetchModels(apiKey: string, baseUrl: string = BASE_URL): Promise<ProviderModelShape[]> {
 	const url = `${baseUrl.replace(/\/+$/, "")}/models`;
