@@ -1,0 +1,54 @@
+{
+  "name": "omp-tokenplan-plugin",
+  "version": "0.1.0",
+  "description": "Tokenplan gateway provider plugin for Oh My Pi: apiKey auth, dynamic model list, /tokenplan selection",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "omp",
+    "tokenplan"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stgmt/omp-tokenplan-plugin.git"
+  },
+  "engines": {
+    "omp": ">=17.3.0"
+  },
+  "bin": {
+    "tokenplan-install": "./bin/tokenplan-install.js"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "omp": {
+    "extensions": [
+      "./dist/extension.js"
+    ],
+    "settings": {
+      "apiKey": {
+        "type": "string",
+        "secret": true,
+        "description": "API key for the tokenplan gateway (https://tokenplan.aipomogator.ru). Set via `tokenplan-install --token <key>` or `omp plugin config set omp-tokenplan-plugin apiKey <key>`.",
+        "env": "TOKENPLAN_API_KEY"
+      }
+    }
+  },
+  "pi": {
+    "extensions": [
+      "./dist/extension.js"
+    ]
+  },
+  "scripts": {
+    "build": "bun build src/extension.ts --outfile dist/extension.js --target bun --format esm"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3"
+  }
+}
