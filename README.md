@@ -9,7 +9,7 @@ session model.
 ## Requirements
 
 - [Oh My Pi](https://github.com/stgmt/oh-my-pi) 17.3+ (`omp` on PATH)
-- [Bun](https://bun.sh) (for the `bunx` install flow) or Node.js 20+
+- Oh My Pi 17.3+ (`omp` on PATH)
 - A tokenplan API key
 
 ## Install (two commands)
