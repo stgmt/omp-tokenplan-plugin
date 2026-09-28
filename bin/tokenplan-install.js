@@ -151,6 +151,4 @@ omp(
 );
 
 console.log("");
-console.log("tokenplan-install: done. In an OMP session run:");
-console.log("  /tokenplan            — switch to the default tokenplan model");
-console.log("  /tokenplan <model-id> — switch to a specific tokenplan model");
+console.log("tokenplan-install: done. In an OMP session type /model and pick a tokenplan model.");

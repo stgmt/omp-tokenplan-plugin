@@ -2,9 +2,8 @@
 
 Oh My Pi provider plugin for the **tokenplan** gateway
 (`https://tokenplan.aipomogator.ru`). It registers a `tokenplan` provider
-(OpenAI Responses API, Bearer auth), fetches the live model catalog from
-`GET /v1/models`, and adds a `/tokenplan` slash command to switch the
-session model.
+(OpenAI Responses API, Bearer auth) and fetches the live model catalog
+from `GET /v1/models`. You pick the model in OMP's own `/model`.
 
 ## Requirements
 
@@ -44,13 +43,8 @@ token contains cmd.exe metacharacters the installer still passes it safely
 
 ## Usage
 
-```
-/tokenplan                 → switch to the default tokenplan model
-/tokenplan <model-id>      → switch to a specific model (e.g. /tokenplan deepseek-chat)
-```
-
-Model specs from `omp models` (e.g. `tokenplan/deepseek-chat`) are accepted;
-bare `/tokenplan` uses the first authenticated tokenplan model.
+In an OMP session type `/model` and pick a `tokenplan/<model-id>` model.
+The plugin adds no slash command of its own.
 
 The provider uses OMP's `openai-responses` transport with
 `Authorization: Bearer <key>`. Prompt caching is handled by OMP core
@@ -58,16 +52,16 @@ The provider uses OMP's `openai-responses` transport with
 
 ## Fail-closed behavior
 
-No API key → the provider advertises no models, makes **zero** requests,
-and `/tokenplan` prints how to configure one. A `/v1/models` fetch that
-fails (network, non-200, empty catalog) produces an error rather than
-stale or partial model metadata.
+No API key → the provider advertises no models and makes **zero**
+requests, so `/model` lists no tokenplan model; the install command above
+stores a key. A `/v1/models` fetch that fails (network, non-200, empty
+catalog) produces an error rather than stale or partial model metadata.
 
 ## Layout
 
 | Path | Role |
 |---|---|
-| `src/extension.ts` | OMP extension entry: provider + `/tokenplan` command |
+| `src/extension.ts` | OMP extension entry: the `tokenplan` provider |
 | `src/model.ts` | `/v1/models` DTO → provider model mapping (pure, testable) |
 | `src/settings.ts` | API-key resolution: project override → global lock → env fallback |
 | `bin/tokenplan-install.js` | one-shot install + token store + live validation |

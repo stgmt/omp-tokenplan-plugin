@@ -1,7 +1,7 @@
 {
   "name": "omp-tokenplan-plugin",
-  "version": "0.1.0",
-  "description": "Tokenplan gateway provider plugin for Oh My Pi: apiKey auth, dynamic model list, /tokenplan selection",
+  "version": "0.2.0",
+  "description": "Tokenplan gateway provider plugin for Oh My Pi: apiKey auth, dynamic model list, model picked in /model",
   "type": "module",
   "license": "MIT",
   "private": true,

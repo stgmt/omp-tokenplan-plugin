@@ -105,7 +105,6 @@ function resolveApiKey(cwd = process.cwd()) {
 }
 
 // src/extension.ts
-var INSTALL_HINT = `run "bunx github:stgmt/${PLUGIN_NAME} --token <key>" or set ${ENV_VAR}`;
 async function tokenplanExtension(pi) {
   pi.setLabel("Tokenplan Gateway");
   const apiKey = resolveApiKey();
@@ -129,23 +128,6 @@ async function tokenplanExtension(pi) {
         });
       },
       getApiKey: (credentials) => credentials
-    }
-  });
-  pi.registerCommand("tokenplan", {
-    description: "Switch to the default tokenplan gateway model (or a named one)",
-    async handler(args, ctx) {
-      const spec = args.trim();
-      const model = spec ? spec.includes("/") ? spec.startsWith(`${PROVIDER}/`) ? ctx.models.resolve(spec) : undefined : ctx.models.resolve(`${PROVIDER}/${spec}`) : ctx.models.list().find((m) => m.provider === PROVIDER);
-      if (!model) {
-        ctx.ui.notify(spec ? `Model "${spec}" is not available on ${PROVIDER} \u2014 the command only accepts tokenplan/<id> or a bare id; check \`omp models\` for the live catalog` : `No usable ${PROVIDER} model (missing key or empty catalog) \u2014 ${INSTALL_HINT} (or: omp plugin config set ${PLUGIN_NAME} ${SETTING_ID} <key>)`, "error");
-        return;
-      }
-      const ok = await pi.setModel(model);
-      if (ok) {
-        ctx.ui.notify(`Switched to ${PROVIDER}/${model.id}`, "info");
-      } else {
-        ctx.ui.notify(`Failed to switch to ${PROVIDER}/${model.id} \u2014 missing or invalid API key; ${INSTALL_HINT}`, "error");
-      }
     }
   });
 }
