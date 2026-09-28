@@ -1,6 +1,6 @@
 {
   "name": "omp-tokenplan-plugin",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Tokenplan gateway provider plugin for Oh My Pi: apiKey auth, dynamic model list, model picked in /model",
   "type": "module",
   "license": "MIT",
@@ -46,7 +46,8 @@
     ]
   },
   "scripts": {
-    "build": "bun build src/extension.ts --outfile dist/extension.js --target bun --format esm"
+    "build": "bun build src/extension.ts --outfile dist/extension.js --target bun --format esm",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/node": "^26.6.3"

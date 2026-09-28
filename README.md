@@ -5,6 +5,10 @@ Oh My Pi provider plugin for the **tokenplan** gateway
 (OpenAI Responses API, Bearer auth) and fetches the live model catalog
 from `GET /v1/models`. You pick the model in OMP's own `/model`.
 
+`TOKENPLAN_BASE_URL` replaces the gateway address (tests, staging), for
+example `TOKENPLAN_BASE_URL=http://127.0.0.1:3000/v1`. Unset or blank means
+production. The extension and the installer both follow it.
+
 ## Requirements
 
 - Oh My Pi 17.3+ (`omp` on PATH)
@@ -46,6 +50,9 @@ token contains cmd.exe metacharacters the installer still passes it safely
 In an OMP session type `/model` and pick a `tokenplan/<model-id>` model.
 The plugin adds no slash command of its own.
 
+Reasoning defaults to `max` on tokenplan models. `/model` offers the
+other levels (`minimal` … `xhigh`), and a level you pick there wins.
+
 The provider uses OMP's `openai-responses` transport with
 `Authorization: Bearer <key>`. Prompt caching is handled by OMP core
 (`prompt_cache_key`), the plugin does not inject it manually.
@@ -71,6 +78,7 @@ catalog) produces an error rather than stale or partial model metadata.
 
 ```bash
 bun run build    # bun build src/extension.ts → dist/extension.js
+bun test         # test/: address override and reasoning default; fetch reaches only 127.0.0.1
 ```
 
 `dist/extension.js` is committed because OMP installs the plugin straight

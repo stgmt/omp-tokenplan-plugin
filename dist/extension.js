@@ -1,20 +1,28 @@
 // @bun
 // src/model.ts
 var BASE_URL = "https://tokenplan.aipomogator.ru/v1";
+var BASE_URL_ENV_VAR = "TOKENPLAN_BASE_URL";
 var PROVIDER = "tokenplan";
 var ENV_VAR = "TOKENPLAN_API_KEY";
 var FALLBACK_CONTEXT_WINDOW = 1048576;
 var FALLBACK_MAX_TOKENS = 384000;
+var THINKING_EFFORTS = ["minimal", "low", "medium", "high", "xhigh", "max"];
+var DEFAULT_THINKING_LEVEL = "max";
+function resolveBaseUrl() {
+  return process.env[BASE_URL_ENV_VAR]?.trim().replace(/\/+$/, "") || BASE_URL;
+}
 var FAIL_CLOSED_ERROR = "tokenplan model fetch failed; refusing to advertise unverified models";
 function toProviderModel(dto) {
   const id = String(dto.id ?? "").trim();
   if (!id)
     throw new Error("tokenplan model entry without id");
   const input = Array.isArray(dto.input_modalities) && dto.input_modalities.length > 0 ? dto.input_modalities.map(String) : ["text"];
+  const reasoning = dto.supports_reasoning ?? true;
   return {
     id,
     name: dto.display_name?.trim() || id,
-    reasoning: dto.supports_reasoning ?? true,
+    reasoning,
+    ...reasoning ? { thinking: { efforts: [...THINKING_EFFORTS], defaultLevel: DEFAULT_THINKING_LEVEL } } : {},
     input,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: dto.context_length ?? FALLBACK_CONTEXT_WINDOW,
@@ -22,7 +30,7 @@ function toProviderModel(dto) {
     compat: { supportsReasoningEffort: true, supportsStore: false }
   };
 }
-async function fetchModels(apiKey, baseUrl = BASE_URL) {
+async function fetchModels(apiKey, baseUrl = resolveBaseUrl()) {
   const url = `${baseUrl.replace(/\/+$/, "")}/models`;
   let res;
   try {
@@ -108,8 +116,9 @@ function resolveApiKey(cwd = process.cwd()) {
 async function tokenplanExtension(pi) {
   pi.setLabel("Tokenplan Gateway");
   const apiKey = resolveApiKey();
+  const baseUrl = resolveBaseUrl();
   pi.registerProvider(PROVIDER, {
-    baseUrl: BASE_URL,
+    baseUrl,
     api: "openai-responses",
     authHeader: true,
     ...apiKey ? { apiKey } : {},
@@ -117,7 +126,7 @@ async function tokenplanExtension(pi) {
     async fetchDynamicModels(key) {
       if (!key)
         return [];
-      return fetchModels(key);
+      return fetchModels(key, baseUrl);
     },
     oauth: {
       name: "Tokenplan",

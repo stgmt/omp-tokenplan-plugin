@@ -4,12 +4,25 @@
  * so they stay unit-testable in isolation.
  */
 
+/** Production gateway; TOKENPLAN_BASE_URL replaces it (see resolveBaseUrl). */
 export const BASE_URL = "https://tokenplan.aipomogator.ru/v1";
+export const BASE_URL_ENV_VAR = "TOKENPLAN_BASE_URL";
 export const PROVIDER = "tokenplan";
 export const ENV_VAR = "TOKENPLAN_API_KEY";
 
 const FALLBACK_CONTEXT_WINDOW = 1_048_576;
 const FALLBACK_MAX_TOKENS = 384_000;
+/**
+ * Reasoning levels offered in /model: OMP's own range for openai-responses
+ * plus "max", the default. The user can still pick any other level.
+ */
+const THINKING_EFFORTS = ["minimal", "low", "medium", "high", "xhigh", "max"];
+const DEFAULT_THINKING_LEVEL = "max";
+
+/** Gateway address: TOKENPLAN_BASE_URL when set (tests, staging), production otherwise. */
+export function resolveBaseUrl(): string {
+	return process.env[BASE_URL_ENV_VAR]?.trim().replace(/\/+$/, "") || BASE_URL;
+}
 
 /** Wire shape of one entry in GET /v1/models `data`. */
 export interface TokenplanModelDto {
@@ -29,6 +42,8 @@ export interface ProviderModelShape {
 	id: string;
 	name: string;
 	reasoning: boolean;
+	/** Reasoning levels for /model and the default one; reasoning models only. */
+	thinking?: { efforts: string[]; defaultLevel: string };
 	input: string[];
 	cost: { input: number; output: number; cacheRead: number; cacheWrite: number };
 	contextWindow: number;
@@ -48,10 +63,12 @@ export function toProviderModel(dto: TokenplanModelDto): ProviderModelShape {
 	const input = Array.isArray(dto.input_modalities) && dto.input_modalities.length > 0
 		? dto.input_modalities.map(String)
 		: ["text"];
+	const reasoning = dto.supports_reasoning ?? true;
 	return {
 		id,
 		name: dto.display_name?.trim() || id,
-		reasoning: dto.supports_reasoning ?? true,
+		reasoning,
+		...(reasoning ? { thinking: { efforts: [...THINKING_EFFORTS], defaultLevel: DEFAULT_THINKING_LEVEL } } : {}),
 		input,
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: dto.context_length ?? FALLBACK_CONTEXT_WINDOW,
@@ -66,7 +83,7 @@ export function toProviderModel(dto: TokenplanModelDto): ProviderModelShape {
  * (no id) throws its own error from toProviderModel. Either way the caller
  * never gets stale or partial data.
  */
-export async function fetchModels(apiKey: string, baseUrl: string = BASE_URL): Promise<ProviderModelShape[]> {
+export async function fetchModels(apiKey: string, baseUrl: string = resolveBaseUrl()): Promise<ProviderModelShape[]> {
 	const url = `${baseUrl.replace(/\/+$/, "")}/models`;
 	let res: Response;
 	try {

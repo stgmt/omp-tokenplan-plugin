@@ -1,13 +1,15 @@
 /**
  * omp-tokenplan-plugin extension entry.
- * Registers the `tokenplan` provider (openai-responses against
- * https://tokenplan.aipomogator.ru/v1, Bearer auth). The model is picked in
+ * Registers the `tokenplan` provider (openai-responses, Bearer auth) against
+ * the gateway in TOKENPLAN_BASE_URL, production
+ * https://tokenplan.aipomogator.ru/v1 when it is unset. The model is picked in
  * OMP's built-in /model picker; the plugin registers no slash command.
+ * Reasoning defaults to "max"; /model offers the other levels.
  * API key resolution is project override → global lock file → env; a missing
  * key means zero provider traffic and no tokenplan model in /model.
  */
 
-import { BASE_URL, fetchModels, PROVIDER, type ProviderModelShape } from "./model.ts";
+import { fetchModels, PROVIDER, resolveBaseUrl, type ProviderModelShape } from "./model.ts";
 import { resolveApiKey } from "./settings.ts";
 
 // ---------------------------------------------------------------------------
@@ -42,9 +44,11 @@ export default async function tokenplanExtension(pi: PiLike): Promise<void> {
 	pi.setLabel("Tokenplan Gateway");
 
 	const apiKey = resolveApiKey();
+	// One address for the requests and the model list.
+	const baseUrl = resolveBaseUrl();
 
 	pi.registerProvider(PROVIDER, {
-		baseUrl: BASE_URL,
+		baseUrl,
 		api: "openai-responses",
 		authHeader: true,
 		...(apiKey ? { apiKey } : {}),
@@ -53,7 +57,7 @@ export default async function tokenplanExtension(pi: PiLike): Promise<void> {
 		models: [],
 		async fetchDynamicModels(key?: string): Promise<ProviderModelShape[]> {
 			if (!key) return [];
-			return fetchModels(key);
+			return fetchModels(key, baseUrl);
 		},
 		oauth: {
 			name: "Tokenplan",

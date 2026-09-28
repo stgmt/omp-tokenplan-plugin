@@ -8,8 +8,10 @@
  * What it does, in order:
  *   1. `omp plugin install github:stgmt/omp-tokenplan-plugin` (idempotent —
  *      skips this step when the plugin is already installed).
- *   2. Validates the token against GET https://tokenplan.aipomogator.ru/v1/models
- *      BEFORE persisting anything: a bad key is rejected, never stored.
+ *   2. Validates the token against GET <gateway>/models BEFORE persisting
+ *      anything: a bad key is rejected, never stored. The gateway is
+ *      TOKENPLAN_BASE_URL, production https://tokenplan.aipomogator.ru/v1
+ *      when it is unset — the same address the extension uses.
  *   3. Persists the key as the plugin's `apiKey` setting via
  *      `omp plugin config set omp-tokenplan-plugin apiKey <token>`.
  *
@@ -26,7 +28,8 @@ import { spawnSync } from "node:child_process";
 
 const PLUGIN_SPEC = "github:stgmt/omp-tokenplan-plugin";
 const PLUGIN_NAME = "omp-tokenplan-plugin";
-const BASE_URL = "https://tokenplan.aipomogator.ru/v1";
+// Same rule as resolveBaseUrl in src/model.ts — keep the two in sync.
+const BASE_URL = process.env.TOKENPLAN_BASE_URL?.trim().replace(/\/+$/, "") || "https://tokenplan.aipomogator.ru/v1";
 
 function fail(message, code = 1) {
 	console.error(`tokenplan-install: ${message}`);
